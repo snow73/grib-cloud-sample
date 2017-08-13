@@ -38,17 +38,8 @@ RUN mkdir geos \
     && make \
     && make check \
     && make install \
-#    && cd build \
-#    && pwd \
-#    && cmake -DCMAKE_INSTALL_PREFIX=/usr/local ../geos-3.6.2 \
-#    && make \
-#    && ctest \
-#    && make install \
     && pwd \
     && rm -rf /geos
-
-# RUN mkdir /.config && mkdir /.config/matplotlib && echo "backend      : Agg" >> /.config/matplotlib/matplotlibrc
-# RUN export DISPLAY=:0
 
 RUN mkdir basemap \
     && cd basemap \
@@ -75,7 +66,7 @@ RUN mkdir eccodes \
     && tar -xzf eccodes.tar.gz \
     && cd build \
     && pwd \
-    && cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DENABLE_PYTHON=ON -DENABLE_MEMFS=ON -DENABLE_PNG=ON ../eccodes-2.4.0-Source \
+    && cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DENABLE_PYTHON=ON -DENABLE_MEMFS=ON -DENABLE_PNG=ON ../eccodes-2.4.1-Source \
     && make \
     && ctest \
     && make install \
