@@ -17,6 +17,7 @@ RUN apt-get update \
     libhdf5-dev \
     libhdf5-serial-dev\
     python-numpy \
+    python-pandas \
     python-netcdf4 \
     python-tk \
     python-pip \
@@ -24,7 +25,7 @@ RUN apt-get update \
     && apt-get clean
 
 RUN pip --no-cache-dir install --upgrade pip \
-    && pip --no-cache-dir install numpy netcdf4 matplotlib pyproj
+    && pip --no-cache-dir install numpy netcdf4 matplotlib pyproj boto3==1.4.6
 
 RUN mkdir geos \
     && cd geos \
@@ -72,6 +73,8 @@ RUN mkdir eccodes \
     && make install \
     && pwd \
     && rm -rf /eccodes
+
+ENV AWS_CONFIG_FILE=/aws/config
 
 WORKDIR /app
 
