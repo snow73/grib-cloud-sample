@@ -51,10 +51,6 @@ while True:
                 print "processing message number",j+1
                 sys.stdout.flush()
 
-                lats = []
-                lons = []
-                values = []
- 
                 gribdate = codes_get (gid, "dataDate")
                 gribtime = codes_get (gid, "dataTime")
 
@@ -83,25 +79,22 @@ while True:
 
                 codes_set(gid, "missingValue", missingValue)
 
-                iterid = codes_grib_iterator_new(gid, 0)
+                ni = codes_get (gid, "Ni")
+                nj = codes_get (gid, "Nj")
 
-                i = 0
-                while 1:
-                    result = codes_grib_iterator_next(iterid)
-                    if not result:
-                        break
-    
-                    [lat, lon, value] = result
+                latitudeOfFirstGridPointInDegrees  = codes_get (gid, "latitudeOfFirstGridPointInDegrees")
+                longitudeOfFirstGridPointInDegrees = codes_get (gid, "longitudeOfFirstGridPointInDegrees")
+                latitudeOfLastGridPointInDegrees  = codes_get (gid, "latitudeOfLastGridPointInDegrees")
+                longitudeOfLastGridPointInDegrees = codes_get (gid, "longitudeOfLastGridPointInDegrees")
 
-                    if (i % 4 == 0) & (value != missingValue):
-                        lats.append(lat)
-                        lons.append(lon)
-                        values.append(value)
-                    i += 1
+                values = codes_get_values(gid).reshape(nj,ni)
+                values = values - 273.15
 
-                codes_grib_iterator_delete(iterid)
                 codes_release(gid)
- 
+
+                lons = np.linspace (longitudeOfFirstGridPointInDegrees-360., longitudeOfLastGridPointInDegrees, ni, endpoint = True)
+                lats = np.linspace (latitudeOfFirstGridPointInDegrees, latitudeOfLastGridPointInDegrees, nj, endpoint = True)
+
                 from mpl_toolkits.basemap import Basemap, shiftgrid
                 import matplotlib
                 matplotlib.use('Agg')
@@ -111,13 +104,10 @@ while True:
                             resolution='l',projection='eqdc',\
                             lat_1=45.,lat_2=55,lat_0=50,lon_0=10.)
 
-                xi = np.linspace (-20, 40, 5000)
-                yi = np.linspace (35, 70, 5000)
+                xx, yy = m(*np.meshgrid(lons,lats))
 
-                newvalues = griddata((lons, lats), values, (xi[None,:], yi[:,None]), method='cubic')
-                xx, yy = m(*np.meshgrid(xi,yi))
-
-                m.contourf(xx,yy,newvalues,5,cmap=plt.cm.jet)
+                clevs = np.arange(-30,50.,2.)
+                m.contourf(xx,yy,values,clevs,cmap=plt.cm.jet)
 
                 m.drawcoastlines()
                 m.drawcountries()
@@ -131,5 +121,6 @@ while True:
                 transfer = boto3.s3.transfer.S3Transfer(client)
                 transfer.upload_file("plot.png", "nwp.fmi.hirlam-public", "basemap/" + targetname)
 
+        message.delete()
     sys.stdout.flush()
     time.sleep(5)
