@@ -10,10 +10,14 @@ import os.path
 import pandas as pd
 import json
 import time
-from scipy.interpolate import griddata
 from dateutil.parser import parse
+from mpl_toolkits.basemap import Basemap
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 
 tmpgrb = '/tmp/grib.grb2'
+clevs = np.arange(-25,45.,5.)
 missingValue = 1e+20 # A value out of range
 
 # Get the service resource
@@ -45,11 +49,30 @@ while True:
  
             f.close()
 
+            ni = 0
+            nj = 0
+
             for j in range(mcount):
                 gid = gid_list[j]
  
+                m = Basemap(width=3600000,height=2100000,
+                            resolution='l',projection='eqdc',\
+                            lat_1=45.,lat_2=55,lat_0=50,lon_0=10.)
+
+                if ni == 0:
+                    ni = codes_get (gid, "Ni")
+                    nj = codes_get (gid, "Nj")
+
+                    latitudeOfFirstGridPointInDegrees  = codes_get (gid, "latitudeOfFirstGridPointInDegrees")
+                    longitudeOfFirstGridPointInDegrees = codes_get (gid, "longitudeOfFirstGridPointInDegrees")
+                    latitudeOfLastGridPointInDegrees  = codes_get (gid, "latitudeOfLastGridPointInDegrees")
+                    longitudeOfLastGridPointInDegrees = codes_get (gid, "longitudeOfLastGridPointInDegrees")
+
+                    lons = np.linspace (longitudeOfFirstGridPointInDegrees-360., longitudeOfLastGridPointInDegrees, ni, endpoint = True)
+                    lats = np.linspace (latitudeOfFirstGridPointInDegrees, latitudeOfLastGridPointInDegrees, nj, endpoint = True)
+                    xx, yy = m(*np.meshgrid(lons,lats))
+
                 print "processing message number",j+1
-                sys.stdout.flush()
 
                 gribdate = codes_get (gid, "dataDate")
                 gribtime = codes_get (gid, "dataTime")
@@ -79,35 +102,15 @@ while True:
 
                 codes_set(gid, "missingValue", missingValue)
 
-                ni = codes_get (gid, "Ni")
-                nj = codes_get (gid, "Nj")
-
-                latitudeOfFirstGridPointInDegrees  = codes_get (gid, "latitudeOfFirstGridPointInDegrees")
-                longitudeOfFirstGridPointInDegrees = codes_get (gid, "longitudeOfFirstGridPointInDegrees")
-                latitudeOfLastGridPointInDegrees  = codes_get (gid, "latitudeOfLastGridPointInDegrees")
-                longitudeOfLastGridPointInDegrees = codes_get (gid, "longitudeOfLastGridPointInDegrees")
-
                 values = codes_get_values(gid).reshape(nj,ni)
                 values = values - 273.15
 
                 codes_release(gid)
 
-                lons = np.linspace (longitudeOfFirstGridPointInDegrees-360., longitudeOfLastGridPointInDegrees, ni, endpoint = True)
-                lats = np.linspace (latitudeOfFirstGridPointInDegrees, latitudeOfLastGridPointInDegrees, nj, endpoint = True)
+                cs = m.contourf(xx,yy,values,clevs,cmap=plt.cm.jet)
 
-                from mpl_toolkits.basemap import Basemap, shiftgrid
-                import matplotlib
-                matplotlib.use('Agg')
-                import matplotlib.pyplot as plt
-
-                m = Basemap(width=3600000,height=2100000,
-                            resolution='l',projection='eqdc',\
-                            lat_1=45.,lat_2=55,lat_0=50,lon_0=10.)
-
-                xx, yy = m(*np.meshgrid(lons,lats))
-
-                clevs = np.arange(-30,50.,2.)
-                m.contourf(xx,yy,values,clevs,cmap=plt.cm.jet)
+                if j == 0:
+                    plt.colorbar(cs, orientation="horizontal", shrink=0.7, pad=0.05)
 
                 m.drawcoastlines()
                 m.drawcountries()
@@ -121,6 +124,5 @@ while True:
                 transfer = boto3.s3.transfer.S3Transfer(client)
                 transfer.upload_file("plot.png", "nwp.fmi.hirlam-public", "basemap/" + targetname)
 
-        message.delete()
-    sys.stdout.flush()
-    time.sleep(5)
+##        message.delete()
+    time.sleep(1)
