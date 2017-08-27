@@ -10,6 +10,7 @@ import os.path
 import pandas as pd
 import json
 import time
+from subprocess import call
 from dateutil.parser import parse
 from mpl_toolkits.basemap import Basemap
 import matplotlib
@@ -19,6 +20,10 @@ import matplotlib.pyplot as plt
 tmpgrb = '/tmp/grib.grb2'
 clevs = np.arange(-25,45.,5.)
 missingValue = 1e+20 # A value out of range
+
+m = Basemap(width=5400000,height=4200000,
+            resolution='l',projection='eqdc',\
+            lat_1=48.,lat_2=62,lat_0=54,lon_0=10.)
 
 # Get the service resource
 s3 = boto3.resource('s3')
@@ -55,10 +60,6 @@ while True:
             for j in range(mcount):
                 gid = gid_list[j]
  
-                m = Basemap(width=3600000,height=2100000,
-                            resolution='l',projection='eqdc',\
-                            lat_1=45.,lat_2=55,lat_0=50,lon_0=10.)
-
                 if ni == 0:
                     ni = codes_get (gid, "Ni")
                     nj = codes_get (gid, "Nj")
@@ -107,10 +108,11 @@ while True:
 
                 codes_release(gid)
 
+                fig = plt.figure()
                 cs = m.contourf(xx,yy,values,clevs,cmap=plt.cm.jet)
 
-                if j == 0:
-                    plt.colorbar(cs, orientation="horizontal", shrink=0.7, pad=0.05)
+                # if j == 0:
+                plt.colorbar(cs, orientation="horizontal", shrink=0.7, pad=0.05)
 
                 m.drawcoastlines()
                 m.drawcountries()
@@ -119,10 +121,15 @@ while True:
 
                 plt.title("{0:s}\n{1} ({2} {3})".format(parametername, validitytime, modeltime, steps))
                 plt.savefig('plot.png')
+                plt.close(fig)
 
                 client = boto3.client('s3', 'eu-west-1')
                 transfer = boto3.s3.transfer.S3Transfer(client)
                 transfer.upload_file("plot.png", "nwp.fmi.hirlam-public", "basemap/" + targetname)
+
+            call(["cp", "index.tmpl", "index.html"])
+            call(["sed", "-i", "-e" "s/MODELRUNTIME/{}/g".format(modeltime.strftime("%Y%m%d%H%M")), "index.html"])
+            transfer.upload_file("index.html", "nwp.fmi.hirlam-public", "index.html")
 
 ##        message.delete()
     time.sleep(1)
