@@ -125,11 +125,11 @@ while True:
 
                 client = boto3.client('s3', 'eu-west-1')
                 transfer = boto3.s3.transfer.S3Transfer(client)
-                transfer.upload_file("plot.png", "nwp.fmi.hirlam-public", "basemap/" + targetname)
+                transfer.upload_file("plot.png", "nwp.fmi.hirlam-public", "basemap/" + targetname, extra_args={'ContentType': "image/png"})
 
             call(["cp", "index.tmpl", "index.html"])
             call(["sed", "-i", "-e" "s/MODELRUNTIME/{}/g".format(modeltime.strftime("%Y%m%d%H%M")), "index.html"])
-            transfer.upload_file("index.html", "nwp.fmi.hirlam-public", "index.html")
+            transfer.upload_file("index.html", "nwp.fmi.hirlam-public", "index.html", extra_args={'ContentType': "text/html"})
 
-##        message.delete()
+        message.delete()
     time.sleep(1)
